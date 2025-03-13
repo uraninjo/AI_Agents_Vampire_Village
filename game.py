@@ -288,10 +288,10 @@ class Game:
         vampires_alive = len(self.get_alive_vampires())
         villagers_alive = len(self.get_alive_villagers())
         if vampires_alive == 0:
-            print("\nKöylüler kazanıyor! Tüm vampirler elendi.")
+            print("\nKöylüler kazandı! Tüm vampirler elendi.")
             return True
         if vampires_alive > villagers_alive:
-            print("\nVampirler kazanıyor! Kontrol onlarındadır.")
+            print("\nVampirler kazandı! Kontrol onlarındır.")
             return True
         return False
     
