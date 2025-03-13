@@ -314,5 +314,5 @@ class Game:
         print("\nOyun Bitti!")
 
 if __name__ == "__main__":
-    game = Game(vampire_count=2, villager_count=6)
+    game = Game(vampire_count=2, villager_count=4)
     game.run_game()
