@@ -89,16 +89,18 @@ class Agent:
         return candidate
 
 class Game:
-    def __init__(self):
+    def __init__(self, vampire_count=2, villager_count=6):
         self.agents = []
         self.round = 0
+        self.vampire_count = vampire_count
+        self.villager_count = villager_count
         self.setup_agents()
     
     def setup_agents(self):
         """
         8 agent oluşturulur: 6 köylü, 2 vampir. Roller rastgele dağıtılır.
         """
-        roles = ['villager'] * 4 + ['vampire'] * 1
+        roles = ['villager'] * self.villager_count + ['vampire'] * self.vampire_count
         random.shuffle(roles)
         for i, role in enumerate(roles, start=1):
             self.agents.append(Agent(name=f"Agent {i}", role=role))
@@ -312,5 +314,5 @@ class Game:
         print("\nOyun Bitti!")
 
 if __name__ == "__main__":
-    game = Game()
+    game = Game(vampire_count=2, villager_count=6)
     game.run_game()
