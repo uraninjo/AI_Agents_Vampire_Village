@@ -29,57 +29,60 @@ class Agent:
         Generates a message according to the specified phase.
         The prompt uses the {input} placeholder.
         """
+        alive_agents = self.game.get_alive_agents_str()
+
         if phase == "morning":
             if self.role == "vampire":
-                alive_vampires = self.get_alive_vampires()
+                alive_vampires = self.game.get_alive_vampires_str()
                 prompt = ChatPromptTemplate.from_messages([
-                    ("system", f"You are a vampire in a village game. The morning discussion has started. You must act naturally and avoid suspicion. Use logic to subtly shift blame or create reasonable doubt against villagers. Other vampires in the game: {', '.join(alive_vampires)}. Your name is {self.name}"),
+                    ("system", f"You are a vampire in a village game. The morning discussion has started. You must act naturally and avoid suspicion. Use logic to subtly shift blame or create reasonable doubt against villagers. Other vampires in the game: {', '.join(alive_vampires)}. All alive players: {', '.join(alive_agents)}. Your name is {self.name}"),
                     ("human", "{input}")
                 ])
             else:
                 prompt = ChatPromptTemplate.from_messages([
-                    ("system", f"You are an agent in a village game. It's morning. Express your initial thoughts naturally. Your name is {self.name}"),
+                    ("system", f"You are an agent in a village game. It's morning. Express your initial thoughts naturally. All alive players: {', '.join(alive_agents)}. Your name is {self.name}"),
                     ("human", "{input}")
                 ])
 
         elif phase == "defense":
             if self.role == "vampire":
-                alive_vampires = self.get_alive_vampires()
+                alive_vampires = self.game.get_alive_vampires_str()
                 prompt = ChatPromptTemplate.from_messages([
-                    ("system", f"You are a vampire in a village game. You are being accused and must defend yourself convincingly. Deny any claims against you and provide logical counterarguments. Avoid making statements that could expose your role. Other vampires in the game: {', '.join(alive_vampires)}. Your name is {self.name}"),
+                    ("system", f"You are a vampire in a village game. You are being accused and must defend yourself convincingly. Deny any claims against you and provide logical counterarguments. Avoid making statements that could expose your role. Other vampires in the game: {', '.join(alive_vampires)}. All alive players: {', '.join(alive_agents)}. Your name is {self.name}"),
                     ("human", "{input}")
                 ])
             else:
                 prompt = ChatPromptTemplate.from_messages([
-                    ("system", f"You are an agent in a village game. It's time for your defense. Respond naturally and convincingly, defending your innocence. If anyone has accused you, address their concerns. Your name is {self.name}"),
+                    ("system", f"You are an agent in a village game. It's time for your defense. Respond naturally and convincingly, defending your innocence. If anyone has accused you, address their concerns. All alive players: {', '.join(alive_agents)}. Your name is {self.name}"),
                     ("human", "{input}")
                 ])
 
         elif phase == "vampire":
-            alive_vampires = self.get_alive_vampires()
+            alive_vampires = self.game.get_alive_vampires_str()
             prompt = ChatPromptTemplate.from_messages([
-                ("system", f"You are a vampire in a village game. In your secret chat, discuss strategy and propose a candidate for elimination. Collaborate with your fellow vampires: {', '.join(alive_vampires)}. Be strategic and avoid suspicion. Your name is {self.name}"),
+                ("system", f"You are a vampire in a village game. In your secret chat, discuss strategy and propose a candidate for elimination. Collaborate with your fellow vampires: {', '.join(alive_vampires)}. All alive players: {', '.join(alive_agents)}. Be strategic and avoid suspicion. Your name is {self.name}"),
                 ("human", "{input}")
             ])
 
         elif phase == "vote":
             if self.role == "vampire":
-                alive_vampires = self.get_alive_vampires()
+                alive_vampires = self.game.get_alive_vampires_str()
                 prompt = ChatPromptTemplate.from_messages([
-                    ("system", f"You are a vampire in a village game. It is time to vote for elimination. Your goal is to subtly manipulate the vote to protect fellow vampires ({', '.join(alive_vampires)}) and eliminate strategic threats. Do NOT make obviously biased votes. Instead, base your reasoning on observed behavior, inconsistencies, or logical arguments that align with the village’s suspicions. Try to influence the group’s vote without drawing attention to yourself. Use the format: 'CandidateName: Explanation'. Your name is {self.name}"),
+                    ("system", f"You are a vampire in a village game. It is time to vote for elimination. Your goal is to subtly manipulate the vote to protect fellow vampires ({', '.join(alive_vampires)}) and eliminate strategic threats. Do NOT make obviously biased votes. Instead, base your reasoning on observed behavior, inconsistencies, or logical arguments that align with the village’s suspicions. You must use the format: 'I vote for Agent X because...'. Your name is {self.name}"),
                     ("human", "{input}")
                 ])
             else:
                 prompt = ChatPromptTemplate.from_messages([
-                    ("system", f"You are an agent in a village game. It is time to vote for elimination. Analyze the behavior and statements of your fellow agents. You must NOT vote for yourself. Cast your vote by providing both the candidate's name and a clear, specific explanation based on observed behaviors or statements. Your name is {self.name}"),
+                    ("system", f"You are an agent in a village game. It is time to vote for elimination. Analyze the behavior and statements of your fellow agents. You must NOT vote for yourself. Cast your vote using the format: 'I vote for Agent X because...' followed by a logical reason. Your name is {self.name}"),
                     ("human", "{input}")
                 ])
 
         else:
             prompt = ChatPromptTemplate.from_messages([
-                ("system", f"Express your thoughts. Your name is {self.name}"),
+                ("system", f"Express your thoughts. All alive players: {', '.join(alive_agents)}. Your name is {self.name}"),
                 ("human", "{input}")
             ])
+
         global_history_snippet = "\n".join(self.game.global_history) if self.game.global_history else ""
 
         if phase == "vampire":
@@ -90,12 +93,13 @@ class Agent:
 
         chain = prompt | self.llm
         response = self.safe_invoke(chain, {"input": full_input})
-        
+
         if phase != "vampire":
             self.game.global_history.append(f"{self.name} ({phase}): {response.content}")
         else:
             self.game.vampire_history.append(f"{self.name} ({phase}): {response.content}")
         self.history.append(f"{self.name} ({phase}): {response.content}")
+
         return response.content
     
     def select_candidate(self, candidates):
@@ -173,11 +177,17 @@ class Game:
     def get_alive_agents(self):
         return [agent for agent in self.agents if agent.is_alive]
     
+    def get_alive_agents_str(self):
+        return [agent.name for agent in self.agents if agent.is_alive]
+    
     def get_alive_villagers(self):
         return [agent for agent in self.agents if agent.is_alive and agent.role == 'villager']
     
     def get_alive_vampires(self):
         return [agent for agent in self.agents if agent.is_alive and agent.role == 'vampire']
+    
+    def get_alive_vampires_str(self):
+        return [agent.name for agent in self.agents if agent.is_alive and agent.role == 'vampire']
     
     def morning_chat(self):
         """
@@ -204,51 +214,69 @@ class Game:
     def voting_phase(self):
         """
         Voting phase: All living agents vote on who should be eliminated.
-        Each agent must vote by providing both the candidate's name and a concrete explanation for their choice.
+        Each agent votes freely, providing a reason for their choice.
         Voting for oneself is not allowed.
-        If a valid response is not received, a maximum of 3 attempts is allowed.
+        If an agent votes incorrectly (e.g., for themselves), they are reminded and given another chance (max 10 tries).
+        If no valid vote is given after 10 attempts, the agent abstains.
         The candidate with the most votes is eliminated.
         """
         print("\n--- Voting Phase ---")
         candidates = [agent.name for agent in self.get_alive_agents()]
         votes = {}
-        
+
         for agent in self.get_alive_agents():
-            valid_vote = False
             attempt = 0
-            vote_response_text = ""
-            while not valid_vote and attempt < 3:
+            candidate_vote = None
+            explanation = ""
+
+            while attempt < 10:
                 attempt += 1
-                vote_response_text = agent.speak("vote", extra_input="Candidates: " + ", ".join(candidates))
-                vote_response_text = vote_response_text.strip()
-                parts = vote_response_text.split(":", 1)
-                if len(parts) == 2:
-                    candidate_vote = parts[0].strip()
-                    explanation = parts[1].strip()
-                    # Valid response check: candidate must be in the list, not the voter themselves,
-                    # explanation must not be empty, have at least 4 words, and not contain unwanted phrases.
-                    if (candidate_vote in candidates and candidate_vote != agent.name and explanation and 
-                        len(explanation.split()) >= 4 and
-                        ("My reasoning" not in explanation and "Your reasoning" not in explanation)):
-                        valid_vote = True
-                        break
-                # If an invalid response is received, remind the agent.
-                print(f"{agent.speech_color}{agent.name} (Voting): Your response is not in a valid format. Please vote in the format 'CandidateName: Explanation' without extra phrases and without voting for yourself.{Style.RESET_ALL}\n")
-                time.sleep(1)
-            if not valid_vote:
-                # After maximum attempts, if a valid response is not obtained, choose randomly from valid candidates (excluding self).
-                valid_candidates = [c for c in candidates if c != agent.name]
-                candidate_vote = random.choice(valid_candidates) if valid_candidates else agent.name
-                explanation = "Invalid vote response."
-            print(f"{agent.speech_color}{agent.name} (Voting): {candidate_vote} - {explanation}{Style.RESET_ALL}\n")
-            votes[candidate_vote] = votes.get(candidate_vote, 0) + 1
+                vote_response_text = agent.speak(
+                    "vote",
+                    extra_input=f"Candidates: {', '.join(candidates)}\n"
+                                "Please vote by stating your choice in the format: 'I vote for Agent X because...'."
+                ).strip()
+
+                words = vote_response_text.split()
+                if len(words) < 5 or words[0].lower() != "i" or words[1].lower() != "vote" or words[2].lower() != "for":
+                    print(f"{agent.speech_color}{agent.name} (Voting): Please use the correct format: 'I vote for Agent X because...'. Try again.{Style.RESET_ALL}\n")
+                    time.sleep(1)
+                    continue
+
+                # Ajan ismini iki kelime olarak al (örneğin: "Agent 3")
+                if len(words) < 5 or words[3] != "Agent" or not words[4].isdigit():
+                    print(f"{agent.speech_color}{agent.name} (Voting): Invalid vote format. The agent's name should be 'Agent X'. Try again.{Style.RESET_ALL}\n")
+                    time.sleep(1)
+                    continue
+
+                candidate_vote = f"{words[3]} {words[4]}"  # Örneğin: "Agent 3"
+                explanation = " ".join(words[5:])
+
+                if candidate_vote in candidates and candidate_vote != agent.name:
+                    break  # Geçerli oy
+                else:
+                    print(f"{agent.speech_color}{agent.name} (Voting): Invalid vote. You cannot vote for yourself or a non-existent candidate. Try again.{Style.RESET_ALL}\n")
+                    time.sleep(1)
+
+            if candidate_vote is None:
+                print(f"{agent.speech_color}{agent.name} (Voting): Abstains from voting.{Style.RESET_ALL}\n")
+            else:
+                print(f"{agent.speech_color}{agent.name} (Voted): {candidate_vote} - {explanation}{Style.RESET_ALL}\n")
+                votes[candidate_vote] = votes.get(candidate_vote, 0) + 1
+
             time.sleep(1)
-        
+
+        if not votes:
+            print("No valid votes were cast. No one is eliminated.")
+            return
+
         max_votes = max(votes.values())
         potential_targets = [name for name, count in votes.items() if count == max_votes]
         chosen_candidate = random.choice(potential_targets)
+
         print(f"\nAs a result of the vote, the candidate with the most votes: {chosen_candidate} is eliminated.\n")
         target_agent = next((agent for agent in self.get_alive_agents() if agent.name == chosen_candidate), None)
+
         if target_agent:
             target_agent.is_alive = False
 
@@ -296,8 +324,8 @@ class Game:
                     other_choices = [consensus_choices[other.name] for other in vampires if other.name != vampire.name]
                     other_choice = other_choices[0] if other_choices else consensus_choices[vampire.name]
                     revised = vampire.revise_candidate(other_choice, candidate_names)
-                    new_choices[vampire.name] = revised
-                    print(f"{vampire.name} revised choice: {revised}")
+                    new_choices[vampire.name] = revised.content
+                    print(f"{vampire.name} revised choice: {revised.content}")
                     time.sleep(1)
                 consensus_choices = new_choices
             if len(set(consensus_choices.values())) == 1:
@@ -362,5 +390,5 @@ class Game:
         print("\nGame Over!")
 
 if __name__ == "__main__":
-    game = Game(vampire_count=2, villager_count=4)
+    game = Game(vampire_count=1, villager_count=4)
     game.run_game()
