@@ -30,44 +30,48 @@ class Agent:
         The prompt uses the {input} placeholder.
         """
         if phase == "morning":
-            if self.role == "villager":
+            if self.role == "vampire":
+                alive_vampires = self.get_alive_vampires()
+                prompt = ChatPromptTemplate.from_messages([
+                    ("system", f"You are a vampire in a village game. The morning discussion has started. You must act naturally and avoid suspicion. Use logic to subtly shift blame or create reasonable doubt against villagers. Other vampires in the game: {', '.join(alive_vampires)}. Your name is {self.name}"),
+                    ("human", "{input}")
+                ])
+            else:
                 prompt = ChatPromptTemplate.from_messages([
                     ("system", f"You are an agent in a village game. It's morning. Express your initial thoughts naturally. Your name is {self.name}"),
                     ("human", "{input}")
                 ])
-            else:  # Vampirler için özel sabah promptu
-                prompt = ChatPromptTemplate.from_messages([
-                    ("system", f"You are a vampire in a village game. It's morning, and you need to subtly shift suspicion away from yourself while raising logical doubts about other villagers. Do not be overly aggressive or obvious. Instead, use reasoning based on previous discussions, inconsistencies, or observed behavior. Avoid making baseless accusations; instead, create doubt strategically. Your name is {self.name}"),
-                    ("human", "{input}")
-                ])
 
         elif phase == "defense":
-            if self.role == "villager":
+            if self.role == "vampire":
+                alive_vampires = self.get_alive_vampires()
                 prompt = ChatPromptTemplate.from_messages([
-                    ("system", f"You are an agent in a village game. It's time for your defense. Respond naturally and convincingly, defending your innocence. If anyone has accused you, address their concerns. In your response, do not leave any placeholder or bracketed instructions. Instead, replace any indication like [mention your role-related activity, e.g., gathering resources, tending to the crops, helping the children] with a specific, concrete detail from your role-related activities. Your name is {self.name}"),
+                    ("system", f"You are a vampire in a village game. You are being accused and must defend yourself convincingly. Deny any claims against you and provide logical counterarguments. Avoid making statements that could expose your role. Other vampires in the game: {', '.join(alive_vampires)}. Your name is {self.name}"),
                     ("human", "{input}")
                 ])
-            else:  # Vampirler için özel savunma promptu
+            else:
                 prompt = ChatPromptTemplate.from_messages([
-                    ("system", f"You are a vampire in a village game, but you must convince others of your innocence. Your response should sound natural and logical. Do not outright deny accusations too strongly. Instead, acknowledge the discussion, offer an alternative suspect with reasoning, and explain why the accusations against you are weak or misguided. Use logical reasoning and avoid excessive defensiveness. Your name is {self.name}"),
+                    ("system", f"You are an agent in a village game. It's time for your defense. Respond naturally and convincingly, defending your innocence. If anyone has accused you, address their concerns. Your name is {self.name}"),
                     ("human", "{input}")
                 ])
 
         elif phase == "vampire":
+            alive_vampires = self.get_alive_vampires()
             prompt = ChatPromptTemplate.from_messages([
-                ("system", f"You are a vampire in a village game. In your secret chat, propose a candidate for elimination. Your name is {self.name}"),
+                ("system", f"You are a vampire in a village game. In your secret chat, discuss strategy and propose a candidate for elimination. Collaborate with your fellow vampires: {', '.join(alive_vampires)}. Be strategic and avoid suspicion. Your name is {self.name}"),
                 ("human", "{input}")
             ])
 
         elif phase == "vote":
-            if self.role == "villager":
+            if self.role == "vampire":
+                alive_vampires = self.get_alive_vampires()
                 prompt = ChatPromptTemplate.from_messages([
-                    ("system", f"You are an agent in a village game. It is time to vote for elimination. Analyze the behavior and statements of your fellow agents. You must NOT vote for yourself. Cast your vote by providing both the candidate's name and a clear, specific explanation based on observed behaviors or statements. If there is no glaringly suspicious behavior, explain your reasoning based on the discussion dynamics. Use the format: 'CandidateName: Explanation'. Do not include extraneous phrases like 'My reasoning' or 'Your reasoning'. Your name is {self.name}"),
+                    ("system", f"You are a vampire in a village game. It is time to vote for elimination. Your goal is to subtly manipulate the vote to protect fellow vampires ({', '.join(alive_vampires)}) and eliminate strategic threats. Do NOT make obviously biased votes. Instead, base your reasoning on observed behavior, inconsistencies, or logical arguments that align with the village’s suspicions. Try to influence the group’s vote without drawing attention to yourself. Use the format: 'CandidateName: Explanation'. Your name is {self.name}"),
                     ("human", "{input}")
                 ])
-            else:  # Vampirler için özel oy verme promptu
+            else:
                 prompt = ChatPromptTemplate.from_messages([
-                    ("system", f"You are a vampire in a village game. It is time to vote for elimination. Your goal is to subtly manipulate the vote to protect fellow vampires and eliminate strategic threats. Do NOT make obviously biased votes. Instead, base your reasoning on observed behavior, inconsistencies, or logical arguments that align with the village’s suspicions. Try to influence the group’s vote without drawing attention to yourself. Use the format: 'CandidateName: Explanation'. Your name is {self.name}"),
+                    ("system", f"You are an agent in a village game. It is time to vote for elimination. Analyze the behavior and statements of your fellow agents. You must NOT vote for yourself. Cast your vote by providing both the candidate's name and a clear, specific explanation based on observed behaviors or statements. Your name is {self.name}"),
                     ("human", "{input}")
                 ])
 
