@@ -10,8 +10,9 @@ class Agent:
         self.name = name
         self.role = role  # 'villager' or 'vampire'
         self.is_alive = True
-        # Separate instance of Gemini-2.0 Flash model for each agent
+        self.history = []  # Konuşma geçmişi
         self.llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash")
+        self.add_info = ""
     
     def safe_invoke(self, chain, inputs):
         """Helper function to wait 5 seconds and retry when a quota (resource) error is encountered."""
@@ -29,32 +30,68 @@ class Agent:
         The prompt uses the {input} placeholder.
         """
         if phase == "morning":
-            prompt = ChatPromptTemplate.from_messages([
-                ("system", "You are an agent in a village game. It's morning. Express your initial thoughts naturally."),
-                ("human", "{input}")
-            ])
+            if self.role == "villager":
+                prompt = ChatPromptTemplate.from_messages([
+                    ("system", f"You are an agent in a village game. It's morning. Express your initial thoughts naturally. Your name is {self.name}"),
+                    ("human", "{input}")
+                ])
+            else:  # Vampirler için özel sabah promptu
+                prompt = ChatPromptTemplate.from_messages([
+                    ("system", f"You are a vampire in a village game. It's morning, and you need to subtly shift suspicion away from yourself while raising logical doubts about other villagers. Do not be overly aggressive or obvious. Instead, use reasoning based on previous discussions, inconsistencies, or observed behavior. Avoid making baseless accusations; instead, create doubt strategically. Your name is {self.name}"),
+                    ("human", "{input}")
+                ])
+
         elif phase == "defense":
-            prompt = ChatPromptTemplate.from_messages([
-                ("system", "You are an agent in a village game. It's time for your defense. Respond naturally and convincingly, defending your innocence. If anyone has accused you, address their concerns. In your response, do not leave any placeholder or bracketed instructions. Instead, replace any indication like [mention your role-related activity, e.g., gathering resources, tending to the crops, helping the children] with a specific, concrete detail from your role-related activities."),
-                ("human", "{input}")
-            ])
+            if self.role == "villager":
+                prompt = ChatPromptTemplate.from_messages([
+                    ("system", f"You are an agent in a village game. It's time for your defense. Respond naturally and convincingly, defending your innocence. If anyone has accused you, address their concerns. In your response, do not leave any placeholder or bracketed instructions. Instead, replace any indication like [mention your role-related activity, e.g., gathering resources, tending to the crops, helping the children] with a specific, concrete detail from your role-related activities. Your name is {self.name}"),
+                    ("human", "{input}")
+                ])
+            else:  # Vampirler için özel savunma promptu
+                prompt = ChatPromptTemplate.from_messages([
+                    ("system", f"You are a vampire in a village game, but you must convince others of your innocence. Your response should sound natural and logical. Do not outright deny accusations too strongly. Instead, acknowledge the discussion, offer an alternative suspect with reasoning, and explain why the accusations against you are weak or misguided. Use logical reasoning and avoid excessive defensiveness. Your name is {self.name}"),
+                    ("human", "{input}")
+                ])
+
         elif phase == "vampire":
             prompt = ChatPromptTemplate.from_messages([
-                ("system", "You are a vampire in a village game. In your secret chat, express your suspicions about who might be a villager and propose a candidate for elimination."),
+                ("system", f"You are a vampire in a village game. In your secret chat, propose a candidate for elimination. Your name is {self.name}"),
                 ("human", "{input}")
             ])
+
         elif phase == "vote":
-            prompt = ChatPromptTemplate.from_messages([
-                ("system", "You are an agent in a village game. It is time to vote for elimination. Analyze the behavior and statements of your fellow agents. You must NOT vote for yourself. Cast your vote by providing both the candidate's name and a clear, specific explanation based on observed behaviors or statements. If there is no glaringly suspicious behavior, explain your reasoning based on the discussion dynamics. Use the format: 'CandidateName: Explanation'. Do not include extraneous phrases like 'My reasoning' or 'Your reasoning'."),
-                ("human", "{input}")
-            ])
+            if self.role == "villager":
+                prompt = ChatPromptTemplate.from_messages([
+                    ("system", f"You are an agent in a village game. It is time to vote for elimination. Analyze the behavior and statements of your fellow agents. You must NOT vote for yourself. Cast your vote by providing both the candidate's name and a clear, specific explanation based on observed behaviors or statements. If there is no glaringly suspicious behavior, explain your reasoning based on the discussion dynamics. Use the format: 'CandidateName: Explanation'. Do not include extraneous phrases like 'My reasoning' or 'Your reasoning'. Your name is {self.name}"),
+                    ("human", "{input}")
+                ])
+            else:  # Vampirler için özel oy verme promptu
+                prompt = ChatPromptTemplate.from_messages([
+                    ("system", f"You are a vampire in a village game. It is time to vote for elimination. Your goal is to subtly manipulate the vote to protect fellow vampires and eliminate strategic threats. Do NOT make obviously biased votes. Instead, base your reasoning on observed behavior, inconsistencies, or logical arguments that align with the village’s suspicions. Try to influence the group’s vote without drawing attention to yourself. Use the format: 'CandidateName: Explanation'. Your name is {self.name}"),
+                    ("human", "{input}")
+                ])
+
         else:
             prompt = ChatPromptTemplate.from_messages([
-                ("system", "Express your thoughts."),
+                ("system", f"Express your thoughts. Your name is {self.name}"),
                 ("human", "{input}")
             ])
+        global_history_snippet = "\n".join(self.game.global_history) if self.game.global_history else ""
+
+        if phase == "vampire":
+            vampire_history_snippet = "\n".join(self.game.vampire_history) if self.game.vampire_history else ""
+            full_input = f"Content of what vampires have spoken: {vampire_history_snippet}\nContent of what villagers have spoken: {global_history_snippet}\n{extra_input}"
+        else:
+            full_input = f"{global_history_snippet}\n{extra_input}"
+
         chain = prompt | self.llm
-        response = self.safe_invoke(chain, {"input": extra_input})
+        response = self.safe_invoke(chain, {"input": full_input})
+        
+        if phase != "vampire":
+            self.game.global_history.append(f"{self.name} ({phase}): {response.content}")
+        else:
+            self.game.vampire_history.append(f"{self.name} ({phase}): {response.content}")
+        self.history.append(f"{self.name} ({phase}): {response.content}")
         return response.content
     
     def select_candidate(self, candidates):
@@ -95,6 +132,8 @@ class Game:
         self.round = 0
         self.vampire_count = vampire_count
         self.villager_count = villager_count
+        self.global_history = []  # 🔹 Tüm ajanların konuşmalarını saklamak için ortak geçmiş
+        self.vampire_history = []
         self.setup_agents()
     
     def setup_agents(self):
@@ -105,7 +144,9 @@ class Game:
         roles = ['villager'] * self.villager_count + ['vampire'] * self.vampire_count
         random.shuffle(roles)
         for i, role in enumerate(roles, start=1):
-            self.agents.append(Agent(name=f"Agent {i}", role=role))
+            agent = Agent(name=f"Agent {i}", role=role)  # Önce nesneyi oluştur
+            agent.game = self  # 🔹 Ajanların `Game` nesnesine erişebilmesi için referans veriyoruz
+            self.agents.append(agent)
         # Assigning colors: Different shades of red for vampires, and various colors for villagers
         vampire_colors = [Fore.LIGHTRED_EX, Fore.RED, Fore.MAGENTA]
         villager_colors = [Fore.CYAN, Fore.GREEN, Fore.BLUE, Fore.LIGHTBLUE_EX, Fore.YELLOW, Fore.LIGHTGREEN_EX]
