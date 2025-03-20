@@ -35,7 +35,7 @@ class Agent:
             if self.role == "vampire":
                 alive_vampires = self.game.get_alive_vampires_str()
                 prompt = ChatPromptTemplate.from_messages([
-                    ("system", f"You are a vampire in a village game. The morning discussion has started. You must act naturally and avoid suspicion. Use logic to subtly shift blame or create reasonable doubt against villagers. Other vampires in the game: {', '.join(alive_vampires)}. All alive players: {', '.join(alive_agents)}. Your name is {self.name}"),
+                    ("system", f"You are a vampire in a village game. The morning discussion has started. You must act naturally and avoid suspicion. Use logic to subtly shift blame or create reasonable doubt against villagers. Avoid making statements that could expose your role and other vampire's roles. Other vampires in the game: {', '.join(alive_vampires)}. All alive players: {', '.join(alive_agents)}. Your name is {self.name}"),
                     ("human", "{input}")
                 ])
             else:
@@ -48,7 +48,7 @@ class Agent:
             if self.role == "vampire":
                 alive_vampires = self.game.get_alive_vampires_str()
                 prompt = ChatPromptTemplate.from_messages([
-                    ("system", f"You are a vampire in a village game. You are being accused and must defend yourself convincingly. Deny any claims against you and provide logical counterarguments. Avoid making statements that could expose your role. Other vampires in the game: {', '.join(alive_vampires)}. All alive players: {', '.join(alive_agents)}. Your name is {self.name}"),
+                    ("system", f"You are a vampire in a village game. You are being accused and must defend yourself convincingly. Deny any claims against you and provide logical counterarguments. Avoid making statements that could expose your role and other vampire's roles. Other vampires in the game: {', '.join(alive_vampires)}. All alive players: {', '.join(alive_agents)}. Your name is {self.name}"),
                     ("human", "{input}")
                 ])
             else:
@@ -68,7 +68,7 @@ class Agent:
             if self.role == "vampire":
                 alive_vampires = self.game.get_alive_vampires_str()
                 prompt = ChatPromptTemplate.from_messages([
-                    ("system", f"You are a vampire in a village game. It is time to vote for elimination. Your goal is to subtly manipulate the vote to protect fellow vampires ({', '.join(alive_vampires)}) and eliminate strategic threats. Do NOT make obviously biased votes. Instead, base your reasoning on observed behavior, inconsistencies, or logical arguments that align with the village’s suspicions. You must use the format: 'I vote for Agent X because...'. Your name is {self.name}"),
+                    ("system", f"You are a vampire in a village game. It is time to vote for elimination. Avoid making statements that could expose your role and other vampire's roles. Your goal is to subtly manipulate the vote to protect fellow vampires ({', '.join(alive_vampires)}) and eliminate strategic threats. Do NOT make obviously biased votes. Instead, base your reasoning on observed behavior, inconsistencies, or logical arguments that align with the village’s suspicions. You must use the format: 'I vote for Agent X because...'. Your name is {self.name}"),
                     ("human", "{input}")
                 ])
             else:
@@ -390,5 +390,5 @@ class Game:
         print("\nGame Over!")
 
 if __name__ == "__main__":
-    game = Game(vampire_count=1, villager_count=4)
+    game = Game(vampire_count=2, villager_count=4)
     game.run_game()
