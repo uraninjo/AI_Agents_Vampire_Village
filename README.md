@@ -84,3 +84,11 @@ python game.py
 ![alt text](imgs/image-9.png)
 
 ![alt text](imgs/image-10.png)
+
+![alt text](imgs/image-11.png)
+
+![alt text](imgs/image-12.png)
+
+![alt text](imgs/image-13.png)
+
+
